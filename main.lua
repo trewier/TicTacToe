@@ -6,73 +6,34 @@
     This is my third attempt at making this, my last two were sadly lost to the void for various unfortunate events.
     Let's hope it fucking works :)
 
-    Game Initialization
-        Create the game board as a 3x3 array or a 1D array of 9 elements.
-        Define player symbols (e.g., "X" for the player, "O" for the AI).
-        Initialize variables to track the current turn and game state (ongoing, win, draw).
+    12/28/2024 - It works, time for some refactoring.
 
-    Display the Board
-        Write a function to print the game board to the console.
-        Ensure the board updates and displays after each move.
-
-    Player Input
-        Write a function to handle player input:
-            Prompt the player for a move (e.g., a number from 1–9).
-            Validate that the input is within range and the cell is empty.
-            Update the board with the player's symbol.
-
-    AI Logic
-        Write a function to determine the AI's move:
-            Start with random moves on empty cells.
-            Optional: Add logic to prioritize winning moves or block the player.
-            Optional: Implement strategic moves (e.g., choose the center or corners).
-
-    Game State Check
-        Write a function to check for win conditions:
-            Check rows, columns, and diagonals for three matching symbols.
-        Write a function to check for a draw:
-            Ensure all cells are filled and there's no winner.
-
-    Game Loop
-        Create a loop to alternate turns between the player and the AI:
-            Display the board at the start of each turn.
-            Check if the game has been won or is a draw.
-            Execute the current turn's move (player input or AI logic).
-            Switch turns.
-
-    End Game
-        Display a message indicating the winner or a draw.
-        Offer an option to restart or exit the game.
-
-    Optional Enhancements:
-        Allow row/column input (e.g., A1, B2) for moves.
-
+    REFACTOR TODO: 
+        Cleanup redundant variables
+        Print board
+        Would like to cleanup game loop
 ]]--
-
-local gameBoard = {" "," "," "," "," "," "," "," "," "}
-
-local winningCombos = {
-    {1,2,3},
-    {4,5,6},
-    {7,8,9},
-    {1,5,9},
-    {3,5,7},
-    {1,4,7},
-    {2,5,8},
-    {3,6,9}
-}
-
 local gameRunning = true
 local gameOver = false
 local gameWinner = nil
 local gameDraw = false
 local currentPlayer = nil
 local moveNumber  = 1
-local PLAYER_SYMBOL = "X"
-local COMPUTER_SYMBOL = "O"
+local PLAYER = "X"
+local COMPUTER = "O"
+local EMPTY = " "
+
+local gameBoard = {}
+
+local winningCombos = {
+    {1,2,3},{4,5,6},{7,8,9}, --Rows
+    {1,4,7},{2,5,8},{3,6,9}, --Columns
+    {1,5,9},{3,5,7}          --Diagonals
+}
+
 
 local function initGame()
-    gameBoard = {" "," "," "," "," "," "," "," "," "}
+    gameBoard = {EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY}
     gameOver = false
     gameWinner = nil
     gameDraw = false
@@ -80,8 +41,21 @@ local function initGame()
     moveNumber = 1
 end
 
+local function getCurrentSymbol()
+    if currentPlayer == "player" then
+        return PLAYER
+    else
+        return COMPUTER
+    end
+end
+
 local function printBoard()
-    local headerMessage = string.format("\n=== Tic Tac Toe ===\nCurrent Player: %s\n", gameWinner or currentPlayer or "Player")
+    local headerMessage = "\n=== Tic Tac Toe ===\n"
+
+    for key, value in pairs(gameBoard) do
+        
+    end
+
     local boardMessage = string.format(
         " %s | %s | %s \n" ..
         "---|---|---\n" ..
@@ -103,7 +77,7 @@ local function promptInput()
         local position = tonumber(input)
 
         if position and position >= 1 and position <= 9 then
-            if gameBoard[position] == " " then
+            if gameBoard[position] == EMPTY then
                 return position
             else
                 print("That cell is already occupied. Try again.")
@@ -132,15 +106,9 @@ local function promptNewGame()
 end
 
 local function setBoardPosition(position)
-    local currentSymbol = "#"
-    if currentPlayer == "player" then 
-        currentSymbol = PLAYER_SYMBOL
-    else
-        currentSymbol = COMPUTER_SYMBOL
-    end
-
+    local currentSymbol = getCurrentSymbol()
     if position and position >= 1 and position <= 9 then
-        if gameBoard[position] == " " then
+        if gameBoard[position] == EMPTY then
             gameBoard[position] = currentSymbol
             moveNumber = moveNumber + 1
         end
@@ -148,31 +116,47 @@ local function setBoardPosition(position)
 end
 
 local function isCellEmpty(cellToCheck)
-    if gameBoard[cellToCheck] == " " then
+    if gameBoard[cellToCheck] == EMPTY then
         return true
     end
     return false
 end
 
 local function analyzeBoard()
+    local winningMoves = {}
+    local blockingMoves = {}
     for key, combo in pairs(winningCombos) do
         local a, b, c = gameBoard[combo[1]], gameBoard[combo[2]], gameBoard[combo[3]]
-        if a == b and a ~= " " and c == " " then
-            return combo[3]
-        elseif a == c and a ~= " " and b == " " then
-            return combo[2]
-        elseif b == c and b ~= " " and a == " " then
-            return combo[1]
+        if a == b and a ~= EMPTY and c == EMPTY then
+            if a == getCurrentSymbol() then
+                table.insert(winningMoves,combo[3])
+            else
+                table.insert(blockingMoves,combo[3])
+            end
+        elseif a == c and a ~= EMPTY and b == EMPTY then
+            if a == getCurrentSymbol() then
+                table.insert(winningMoves,combo[2])
+            else
+                table.insert(blockingMoves,combo[2])
+            end
+        elseif b == c and b ~= EMPTY and a == EMPTY then
+            if b == getCurrentSymbol() then
+                table.insert(winningMoves,combo[1])
+            else
+                table.insert(blockingMoves,combo[1])
+            end
         end
+    end
+
+    if #winningMoves > 1 then
+        return winningMoves[1]
+    else
+        return blockingMoves[1]
     end
 
     return nil
 end
 
---[[
-    Essentially creates a better starting move for the computer 
-    without weighting cells 1 or 9 over eachother
-]]
 local function randomOdd()
     local rand = 2
     while rand % 2 == 0 do
@@ -191,7 +175,7 @@ local function chooseComputerMove()
         end
         local position = analyzeBoard() or rand
         if position and position >= 1 and position <= 9 then
-            if gameBoard[position] == " " then
+            if gameBoard[position] == EMPTY then
                 return position
             end
         end
@@ -199,16 +183,24 @@ local function chooseComputerMove()
 end
 
 local function checkForDraw()
-    if moveNumber > 9 then
-        gameOver = true
-        gameDraw = true
+    local tableFull = true
+    for key, cell in pairs(gameBoard) do
+        if cell == EMPTY then
+            tableFull = false
+        end
     end
+    --TODO We could refactor this into a function that ends the game for us, save some lines over multiple functions
+    if tableFull then
+        gameDraw = true
+        gameOver = true
+    end
+    return tableFull
 end
 
 local function checkForWin()
     if moveNumber < 4 then return false end --It's impossible to win before move 5, so let's skip checking
     for key, combo in pairs(winningCombos) do
-        if gameBoard[combo[1]] == gameBoard[combo[2]] and gameBoard[combo[2]] == gameBoard[combo[3]] and gameBoard[combo[1]] ~= " " then
+        if gameBoard[combo[1]] == gameBoard[combo[2]] and gameBoard[combo[2]] == gameBoard[combo[3]] and gameBoard[combo[1]] ~= EMPTY then
             gameOver = true
             gameWinner = currentPlayer
             return true
